@@ -15,6 +15,18 @@ const options = {
                 description: 'Servidor de desarrollo',
             },
         ],
+        // Declara el esquema de seguridad JWT para toda la API
+        // Esto habilita el botón "Authorize 🔒" en la UI de Swagger
+        components: {
+            securitySchemes: {
+                BearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                    description: 'Ingresa el token JWT obtenido en /api/auth/login',
+                },
+            },
+        },
     },
     // Aquí le decimos dónde están los comentarios JSDoc con las rutas
     apis: ['./src/routes/*.js'],
