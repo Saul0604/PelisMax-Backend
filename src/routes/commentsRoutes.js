@@ -136,7 +136,7 @@ router.post("/", verifyToken, async (req, res) => {
  *       404:
  *         description: No se encontraron comentarios
  */
-router.get("/:movieId", verifyToken, async (req, res) => {
+router.get("/:movieId", async (req, res) => {
     try {
         const { movieId } = req.params;
 
