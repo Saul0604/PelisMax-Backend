@@ -1,5 +1,6 @@
 const express = require("express");
 const OmdbService = require("../services/omdbService");
+const RatingService = require("../services/ratingService"); // ← agrega esto
 const verifyToken = require("../middlewares/authMiddleware");
 
 /**
@@ -10,7 +11,9 @@ const verifyToken = require("../middlewares/authMiddleware");
  */
 
 const router = express.Router();
-const service = new OmdbService();
+const omdbService = new OmdbService();
+const ratingService = new RatingService(); // ← agrega esto
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/movies/
@@ -205,8 +208,23 @@ router.get("/search", verifyToken, async (req, res) => {
 router.get("/:imdbId", verifyToken, async (req, res) => {
     try {
         const { imdbId } = req.params;
-        const data = await service.getMovieById(imdbId);
-        res.status(200).json(data);
+        const userId = req.user.id;
+
+        // Trae info de OMDb + stats de tu BD en paralelo
+        const [movie, stats, userScore] = await Promise.all([
+            omdbService.getMovieById(imdbId),
+            ratingService.getMovieStats(imdbId),
+            ratingService.getUserRating(userId, imdbId),
+        ]);
+
+        res.status(200).json({
+            ...movie,
+            communityRating: {
+                averageScore: stats.averageScore,
+                totalVotes: stats.totalVotes,
+                userScore,
+            },
+        });
     } catch (error) {
         res.status(404).json({ msg: error.message });
     }
