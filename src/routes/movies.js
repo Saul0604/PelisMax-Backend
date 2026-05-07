@@ -62,9 +62,9 @@ const ratingService = new RatingService(); // ← agrega esto
  *       500:
  *         description: Error interno del servidor
  */
-router.get("/", verifyToken, async (req, res) => {
+router.get("/", async (req, res) => {
     try {
-        const data = await service.getFeatured();
+        const data = await omdbService.getFeatured();
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ msg: error.message });
@@ -133,12 +133,12 @@ router.get("/", verifyToken, async (req, res) => {
  *       404:
  *         description: No se encontraron resultados
  */
-router.get("/search", verifyToken, async (req, res) => {
+router.get("/search", async (req, res) => {
     try {
         const { q, page } = req.query;
         if (!q) return res.status(400).json({ msg: "El parámetro q es requerido" });
 
-        const data = await service.searchMovies(q, page);
+        const data = await omdbService.searchMovies(q, page);
         res.status(200).json(data);
     } catch (error) {
         res.status(404).json({ msg: error.message });
@@ -205,16 +205,16 @@ router.get("/search", verifyToken, async (req, res) => {
  *       404:
  *         description: Película no encontrada
  */
-router.get("/:imdbId", verifyToken, async (req, res) => {
+router.get("/:imdbId", async (req, res) => {
     try {
         const { imdbId } = req.params;
-        const userId = req.user.id;
+        const userId = req.user?.id ?? null;
 
         // Trae info de OMDb + stats de tu BD en paralelo
         const [movie, stats, userScore] = await Promise.all([
             omdbService.getMovieById(imdbId),
             ratingService.getMovieStats(imdbId),
-            ratingService.getUserRating(userId, imdbId),
+            userId ? ratingService.getUserRating(userId, imdbId) : Promise.resolve(null),
         ]);
 
         res.status(200).json({
