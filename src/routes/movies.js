@@ -1,6 +1,6 @@
 const express = require("express");
 const OmdbService = require("../services/omdbService");
-const RatingService = require("../services/ratingService"); // ← agrega esto
+const RatingService = require("../services/ratingService");
 const verifyToken = require("../middlewares/authMiddleware");
 
 /**
@@ -12,7 +12,7 @@ const verifyToken = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 const omdbService = new OmdbService();
-const ratingService = new RatingService(); // ← agrega esto
+const ratingService = new RatingService();
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ const ratingService = new RatingService(); // ← agrega esto
  *       500:
  *         description: Error interno del servidor
  */
-router.get("/", async (req, res) => {
+router.get("/", verifyToken, async (req, res) => {
     try {
         const data = await omdbService.getFeatured();
         res.status(200).json(data);
@@ -79,7 +79,7 @@ router.get("/", async (req, res) => {
  * @swagger
  * /api/movies/search:
  *   get:
- *     summary: Busca películas por título
+ *     summary: Busca películas por título con coincidencias parciales
  *     tags: [Movies]
  *     security:
  *       - BearerAuth: []
@@ -89,8 +89,8 @@ router.get("/", async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Texto a buscar
- *         example: batman
+ *         description: Texto a buscar (búsqueda insensible a mayúsculas/minúsculas)
+ *         example: spider
  *       - in: query
  *         name: page
  *         required: false
@@ -100,48 +100,80 @@ router.get("/", async (req, res) => {
  *         description: Número de página (cada página trae 10 resultados)
  *     responses:
  *       200:
- *         description: Resultados de búsqueda
+ *         description: Array de películas encontradas. Retorna arreglo vacío si no hay coincidencias
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 Search:
+ *                 movies:
  *                   type: array
  *                   items:
  *                     type: object
  *                     properties:
  *                       Title:
  *                         type: string
- *                         example: Batman Begins
- *                       Year:
- *                         type: string
- *                         example: "2005"
- *                       imdbID:
- *                         type: string
- *                         example: tt0372784
+ *                         example: Spider-Man
  *                       Poster:
  *                         type: string
  *                         example: https://m.media-amazon.com/images/...
+ *                       imdbID:
+ *                         type: string
+ *                         example: tt0145487
  *                 totalResults:
+ *                   type: integer
+ *                   example: 45
+ *                 message:
  *                   type: string
- *                   example: "48"
+ *                   example: No se encontraron resultados para "xyz"
  *       400:
  *         description: El parámetro q es requerido
  *       401:
  *         description: Token requerido, inválido o expirado
- *       404:
- *         description: No se encontraron resultados
+ *       500:
+ *         description: Error interno del servidor
  */
-router.get("/search", async (req, res) => {
+router.get("/search", verifyToken, async (req, res) => {
     try {
         const { q, page } = req.query;
-        if (!q) return res.status(400).json({ msg: "El parámetro q es requerido" });
+        
+        // Validar que el parámetro q sea proporcionado y no esté vacío
+        if (!q || q.trim() === "") {
+            return res.status(400).json({ 
+                msg: "El parámetro q es requerido" 
+            });
+        }
 
-        const data = await omdbService.searchMovies(q, page);
-        res.status(200).json(data);
+        // Buscar películas usando OmdbService
+        const data = await omdbService.searchMovies(q.trim(), page);
+        
+        // Si no hay resultados, retornar arreglo vacío con mensaje informativo
+        if (!data.Search || data.Search.length === 0) {
+            return res.status(200).json({
+                movies: [],
+                totalResults: 0,
+                message: `No se encontraron resultados para "${q.trim()}"`
+            });
+        }
+
+        // Filtrar y retornar solo los campos esenciales: Title, Poster, imdbID
+        const optimizedMovies = data.Search.map(movie => ({
+            Title: movie.Title,
+            Poster: movie.Poster,
+            imdbID: movie.imdbID
+        }));
+
+        res.status(200).json({
+            movies: optimizedMovies,
+            totalResults: parseInt(data.totalResults) || 0
+        });
     } catch (error) {
-        res.status(404).json({ msg: error.message });
+        // Retornar código 200 con arreglo vacío en caso de error de búsqueda
+        res.status(200).json({
+            movies: [],
+            totalResults: 0,
+            message: `No se encontraron resultados para "${req.query.q}"`
+        });
     }
 });
 
@@ -205,7 +237,7 @@ router.get("/search", async (req, res) => {
  *       404:
  *         description: Película no encontrada
  */
-router.get("/:imdbId", async (req, res) => {
+router.get("/:imdbId", verifyToken, async (req, res) => {
     try {
         const { imdbId } = req.params;
         const userId = req.user?.id ?? null;
