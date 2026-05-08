@@ -67,22 +67,22 @@ router.post("/", verifyToken, async (req, res) => {
 
         // Validar que los campos requeridos estén presentes
         if (!movieId || !movieTitle || !text) {
-            return res.status(400).json({ 
-                msg: "Los campos movieId, movieTitle y text son requeridos" 
+            return res.status(400).json({
+                msg: "Los campos movieId, movieTitle y text son requeridos"
             });
         }
 
         // Validar que el comentario no esté vacío
         if (text.trim().length === 0) {
-            return res.status(400).json({ 
-                msg: "El comentario no puede estar vacío" 
+            return res.status(400).json({
+                msg: "El comentario no puede estar vacío"
             });
         }
 
         // Validar la longitud del comentario (máximo 250 caracteres)
         if (text.length > 250) {
-            return res.status(400).json({ 
-                msg: `El comentario no puede exceder 250 caracteres (actual: ${text.length})` 
+            return res.status(400).json({
+                msg: `El comentario no puede exceder 250 caracteres (actual: ${text.length})`
             });
         }
 
@@ -104,9 +104,9 @@ router.post("/", verifyToken, async (req, res) => {
         });
     } catch (error) {
         console.error("Error al crear comentario:", error);
-        res.status(500).json({ 
+        res.status(500).json({
             msg: "Error al crear el comentario",
-            error: error.message 
+            error: error.message
         });
     }
 });
@@ -145,8 +145,8 @@ router.get("/:movieId", async (req, res) => {
             .sort({ createdAt: -1 });
 
         if (comments.length === 0) {
-            return res.status(404).json({ 
-                msg: "No hay comentarios para esta película" 
+            return res.status(404).json({
+                msg: "No hay comentarios para esta película"
             });
         }
 
@@ -157,9 +157,9 @@ router.get("/:movieId", async (req, res) => {
         });
     } catch (error) {
         console.error("Error al obtener comentarios:", error);
-        res.status(500).json({ 
+        res.status(500).json({
             msg: "Error al obtener comentarios",
-            error: error.message 
+            error: error.message
         });
     }
 });
@@ -197,28 +197,28 @@ router.delete("/:commentId", verifyToken, async (req, res) => {
         const comment = await Comment.findById(commentId);
 
         if (!comment) {
-            return res.status(404).json({ 
-                msg: "Comentario no encontrado" 
+            return res.status(404).json({
+                msg: "Comentario no encontrado"
             });
         }
 
         // Verificar que el usuario sea el propietario del comentario
         if (comment.userId.toString() !== req.user.id) {
-            return res.status(403).json({ 
-                msg: "No tienes permiso para eliminar este comentario" 
+            return res.status(403).json({
+                msg: "No tienes permiso para eliminar este comentario"
             });
         }
 
         await Comment.findByIdAndDelete(commentId);
 
-        res.status(200).json({ 
-            msg: "Comentario eliminado exitosamente" 
+        res.status(200).json({
+            msg: "Comentario eliminado exitosamente"
         });
     } catch (error) {
         console.error("Error al eliminar comentario:", error);
-        res.status(500).json({ 
+        res.status(500).json({
             msg: "Error al eliminar comentario",
-            error: error.message 
+            error: error.message
         });
     }
 });
