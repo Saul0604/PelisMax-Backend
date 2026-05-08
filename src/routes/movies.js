@@ -1,5 +1,6 @@
 const express = require("express");
 const OmdbService = require("../services/omdbService");
+const RatingService = require("../services/ratingService");
 const verifyToken = require("../middlewares/authMiddleware");
 
 /**
@@ -10,7 +11,9 @@ const verifyToken = require("../middlewares/authMiddleware");
  */
 
 const router = express.Router();
-const service = new OmdbService();
+const omdbService = new OmdbService();
+const ratingService = new RatingService();
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/movies/
@@ -61,7 +64,7 @@ const service = new OmdbService();
  */
 router.get("/", verifyToken, async (req, res) => {
     try {
-        const data = await service.getFeatured();
+        const data = await omdbService.getFeatured();
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ msg: error.message });
@@ -141,10 +144,6 @@ router.get("/search", verifyToken, async (req, res) => {
             });
         }
 
-<<<<<<< Updated upstream
-        const data = await service.searchMovies(q, page);
-        res.status(200).json(data);
-=======
         // Buscar películas usando OmdbService
         const data = await omdbService.searchMovies(q.trim(), page);
         
@@ -168,7 +167,6 @@ router.get("/search", verifyToken, async (req, res) => {
             movies: optimizedMovies,
             totalResults: parseInt(data.totalResults) || 0
         });
->>>>>>> Stashed changes
     } catch (error) {
         // Retornar código 200 con arreglo vacío en caso de error de búsqueda
         res.status(200).json({
@@ -242,8 +240,23 @@ router.get("/search", verifyToken, async (req, res) => {
 router.get("/:imdbId", verifyToken, async (req, res) => {
     try {
         const { imdbId } = req.params;
-        const data = await service.getMovieById(imdbId);
-        res.status(200).json(data);
+        const userId = req.user?.id ?? null;
+
+        // Trae info de OMDb + stats de tu BD en paralelo
+        const [movie, stats, userScore] = await Promise.all([
+            omdbService.getMovieById(imdbId),
+            ratingService.getMovieStats(imdbId),
+            userId ? ratingService.getUserRating(userId, imdbId) : Promise.resolve(null),
+        ]);
+
+        res.status(200).json({
+            ...movie,
+            communityRating: {
+                averageScore: stats.averageScore,
+                totalVotes: stats.totalVotes,
+                userScore,
+            },
+        });
     } catch (error) {
         res.status(404).json({ msg: error.message });
     }
