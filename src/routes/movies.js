@@ -62,9 +62,10 @@ const ratingService = new RatingService();
  *       500:
  *         description: Error interno del servidor
  */
-router.get("/", verifyToken, async (req, res) => {
+router.get("/", async (req, res) => {
     try {
-        const data = await omdbService.getFeatured();
+        const page = parseInt(req.query.page) || 1;
+        const data = await omdbService.getFeatured(page);
         res.status(200).json(data);
     } catch (error) {
         res.status(500).json({ msg: error.message });
@@ -133,20 +134,20 @@ router.get("/", verifyToken, async (req, res) => {
  *       500:
  *         description: Error interno del servidor
  */
-router.get("/search", verifyToken, async (req, res) => {
+router.get("/search", async (req, res) => {
     try {
         const { q, page } = req.query;
-        
+
         // Validar que el parámetro q sea proporcionado y no esté vacío
         if (!q || q.trim() === "") {
-            return res.status(400).json({ 
-                msg: "El parámetro q es requerido" 
+            return res.status(400).json({
+                msg: "El parámetro q es requerido"
             });
         }
 
         // Buscar películas usando OmdbService
         const data = await omdbService.searchMovies(q.trim(), page);
-        
+
         // Si no hay resultados, retornar arreglo vacío con mensaje informativo
         if (!data.Search || data.Search.length === 0) {
             return res.status(200).json({
@@ -237,7 +238,7 @@ router.get("/search", verifyToken, async (req, res) => {
  *       404:
  *         description: Película no encontrada
  */
-router.get("/:imdbId", verifyToken, async (req, res) => {
+router.get("/:imdbId", async (req, res) => {
     try {
         const { imdbId } = req.params;
         const userId = req.user?.id ?? null;
