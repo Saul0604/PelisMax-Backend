@@ -28,22 +28,44 @@ class OmdbService {
         return data;
     }
 
-    async getFeatured() {
+    async getFeatured(page = 1) {
+        const currentYear = new Date().getFullYear();
         const categories = [
+            { label: "Estrenos", query: "2025", isYear: true }, // Use a year-based query
             { label: "Acción", query: "action" },
             { label: "Comedia", query: "comedy" },
             { label: "Terror", query: "horror" },
             { label: "Ciencia Ficción", query: "sci-fi" },
+            { label: "Drama", query: "drama" },
+            { label: "Animación", query: "animation" },
+            { label: "Aventura", query: "adventure" },
+            { label: "Fantasía", query: "fantasy" },
+            { label: "Misterio", query: "mystery" },
         ];
+
+        // Each "page" of our API fetches 2 pages from OMDb (20 movies)
+        const omdbPageStart = (page - 1) * 2 + 1;
+        const omdbPages = [omdbPageStart, omdbPageStart + 1];
 
         const results = await Promise.all(
             categories.map(async (cat) => {
-                const { data } = await axios.get(this.baseURL, {  // ← destructuring igual que arriba
-                    params: { apikey: this.apiKey, s: cat.query, type: "movie" },
+                const movieRequests = omdbPages.map(p => {
+                    const params = { apikey: this.apiKey, type: "movie", page: p };
+                    if (cat.isYear) {
+                        params.s = "movie"; // Generic search
+                        params.y = cat.query; // Filter by year
+                    } else {
+                        params.s = cat.query;
+                    }
+                    return axios.get(this.baseURL, { params }).catch(() => ({ data: { Search: [] } }));
                 });
+
+                const responses = await Promise.all(movieRequests);
+                const allMovies = responses.flatMap(res => res.data.Search || []);
+
                 return {
                     category: cat.label,
-                    movies: data.Search || [],  // ← ya no necesitas data.data.Search
+                    movies: allMovies,
                 };
             })
         );
